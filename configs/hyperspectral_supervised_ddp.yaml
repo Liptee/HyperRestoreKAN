@@ -1,0 +1,45 @@
+experiment: hyperspectral_supervised
+save_dir: experiments
+resume: false
+accelerator: 'gpu'
+devices: 'auto'  # Lightning will auto-detect available GPUs
+strategy: 'ddp_find_unused_parameters_true'  # Explicitly set DDP with unused parameters handling
+
+model:
+  type: light_hyperspectral_cm_kan  # Use lightweight version
+  params:
+    in_dims:
+      - 31  # 31 hyperspectral channels
+    out_dims:
+      - 31
+    grid_size: 2  # Minimal grid size
+    spline_order: 1  # Minimal spline order
+    residual_std: 0.05
+    grid_range:
+      - -1.0
+      - 1.0
+
+data:
+  type: cave  # Use CAVE dataset which exists in data folder
+  train:
+    source: 'data/CAVE/Train/HSI_PER_RGB'
+    target: 'data/CAVE/Train/HSI'
+  val:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  test:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+
+pipeline:
+  type: supervised
+  params:
+    lr: 1e-3
+    batch_size: 1  # Minimal batch size for memory
+    val_batch_size: 1
+    test_batch_size: 1
+    epochs: 100  # Reduced for testing
+    save_freq: 10
+    visualize_freq: 10
+    optimiser: 'adam'
+    weight_decay: 1e-5

@@ -1,0 +1,89 @@
+experiment: hyperspectral_supervised
+save_dir: experiments
+resume: True
+accelerator: 'cpu'
+
+model:
+  type: hyperspectral_cm_kan
+  params:
+    in_dims:
+      - 31  # 31 hyperspectral bands
+    out_dims:
+      - 31  # 31 output bands (same as input for restoration)
+    grid_size: 5
+    spline_order: 3
+    residual_std: 0.1
+    grid_range:
+      - -1.0
+      - 1.0
+    use_spectral_processor: true
+    use_residual_blocks: true
+    num_residual_blocks: 2
+
+data:
+  type: cave  # CAVE hyperspectral dataset
+  train:
+    source: 'data/CAVE/Train/HSI_PER_RGB'
+    target: 'data/CAVE/Train/HSI'
+  val:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  test:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  preprocessing:
+    normalize: true
+    spectral_range: [400, 2500]  # Wavelength range in nm
+    spatial_size: [128, 128]     # Reduced spatial dimensions for memory
+    augmentation:
+      enable: true
+      spectral_shift: 0.1        # Random spectral shift
+      spatial_flip: true         # Random horizontal/vertical flip
+      rotation: 15               # Random rotation up to 15 degrees
+
+pipeline:
+  type: supervised
+  params:
+    lr: 5e-4  # Lower learning rate for hyperspectral complexity
+    batch_size: 1   # Minimal batch size to avoid OOM
+    val_batch_size: 1
+    test_batch_size: 1
+    epochs: 1000    # More epochs for convergence
+    save_freq: 20
+    visualize_freq: 20
+    
+    # Hyperspectral-specific loss weights
+    loss_weights:
+      mse: 1.0
+      spectral_angle: 0.5      # Spectral Angle Mapper loss
+      spectral_gradient: 0.3   # Spectral gradient preservation
+      spatial_gradient: 0.2    # Spatial gradient preservation
+    
+    # Advanced optimization
+    optimizer: 'adamw'
+    weight_decay: 1e-4
+    scheduler: 'cosine'
+    warmup_epochs: 50
+    
+    # Hyperspectral evaluation metrics
+    metrics:
+      - 'mse'
+      - 'psnr'
+      - 'ssim'
+      - 'sam'  # Spectral Angle Mapper (computed in pipeline)
+
+# Hardware optimization for hyperspectral processing
+hardware:
+  mixed_precision: true
+  gradient_accumulation_steps: 8  # Increase to compensate for smaller batch size
+  pin_memory: true
+  num_workers: 0  # Reduce to 0 for testing to avoid multiprocessing issues
+  
+# Logging and monitoring
+logging:
+  wandb:
+    project: "hyperspectral-cmkan"
+    tags: ["hyperspectral", "restoration", "31-bands"]
+  tensorboard: true
+  log_images: true
+  log_spectra: true  # Log spectral profiles

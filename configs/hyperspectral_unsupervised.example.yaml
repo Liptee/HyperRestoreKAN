@@ -1,0 +1,96 @@
+experiment: hyperspectral_unsupervised
+save_dir: experiments
+resume: True
+accelerator: 'gpu'
+
+model:
+  type: hyperspectral_cycle_cm_kan
+  params:
+    in_dims:
+      - 31  # 31 hyperspectral bands
+    out_dims:
+      - 31  # 31 output bands
+    grid_size: 5
+    spline_order: 3
+    residual_std: 0.1
+    grid_range:
+      - -1.0
+      - 1.0
+
+data:
+  type: hyperspectral_unpaired
+  train:
+    domain_a: 'data/hyperspectral/train/domain_a'
+    domain_b: 'data/hyperspectral/train/domain_b'
+  val:
+    domain_a: 'data/hyperspectral/val/domain_a'
+    domain_b: 'data/hyperspectral/val/domain_b'
+  test:
+    domain_a: 'data/hyperspectral/test/domain_a'
+    domain_b: 'data/hyperspectral/test/domain_b'
+  preprocessing:
+    normalize: true
+    spectral_range: [400, 2500]
+    spatial_size: [256, 256]
+    augmentation:
+      enable: true
+      spectral_shift: 0.05
+      spatial_flip: true
+      rotation: 10
+
+pipeline:
+  type: unsupervised
+  params:
+    # Generator learning rates
+    lr_g: 2e-4
+    # Discriminator learning rates  
+    lr_d: 1e-4
+    
+    batch_size: 6
+    val_batch_size: 3
+    test_batch_size: 3
+    epochs: 2000
+    save_freq: 50
+    visualize_freq: 25
+    
+    # CycleGAN loss weights for hyperspectral
+    loss_weights:
+      adversarial: 1.0
+      cycle_consistency: 10.0    # Higher weight for spectral consistency
+      identity: 5.0              # Identity loss for spectral preservation
+      spectral_consistency: 2.0  # Additional spectral loss
+      
+    # Discriminator settings
+    discriminator:
+      type: 'multiscale'  # Use multi-scale discriminator
+      spectral_attention: true
+      feature_matching: true
+      
+    # Advanced training
+    optimizer_g: 'adamw'
+    optimizer_d: 'adamw'
+    beta1: 0.5
+    beta2: 0.999
+    weight_decay: 1e-4
+    
+    # Learning rate scheduling
+    scheduler: 'linear_decay'
+    decay_start_epoch: 1000
+    
+    # Training stability
+    gradient_penalty: 10.0
+    spectral_normalization: true
+
+hardware:
+  mixed_precision: true
+  gradient_accumulation_steps: 2
+  pin_memory: true
+  num_workers: 4
+
+logging:
+  wandb:
+    project: "hyperspectral-cyclegan-cmkan"
+    tags: ["hyperspectral", "unpaired", "domain-adaptation"]
+  tensorboard: true
+  log_images: true
+  log_spectra: true

@@ -1,0 +1,49 @@
+experiment: hyperspectral_supervised_single
+save_dir: experiments
+resume: false
+accelerator: 'gpu'
+devices: 1  # Single GPU
+strategy: 'auto'  # No special strategy needed for single GPU
+
+model:
+  type: hyperspectral_cm_kan
+  params:
+    in_dims:
+      - 31  # 31 hyperspectral channels
+    out_dims:
+      - 31
+    grid_size: 5
+    spline_order: 3
+    residual_std: 0.1
+    grid_range:
+      - -1.0
+      - 1.0
+    use_spectral_processor: true
+    use_residual_blocks: true
+    num_residual_blocks: 2
+    use_gradient_checkpointing: true
+
+data:
+  type: hyperspectral
+  train:
+    source: 'data/hyperspectral/train/source'
+    target: 'data/hyperspectral/train/target'
+  val:
+    source: 'data/hyperspectral/val/source'
+    target: 'data/hyperspectral/val/target'
+  test:
+    source: 'data/hyperspectral/test/source'
+    target: 'data/hyperspectral/test/target'
+
+pipeline:
+  type: supervised
+  params:
+    lr: 3e-4  # Lower learning rate for hyperspectral complexity
+    batch_size: 8  # Slightly larger batch size for single GPU
+    val_batch_size: 4
+    test_batch_size: 4
+    epochs: 1000  # More epochs for convergence
+    save_freq: 50
+    visualize_freq: 50
+    optimiser: 'adamw'
+    weight_decay: 1e-4

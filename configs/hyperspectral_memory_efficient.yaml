@@ -1,0 +1,77 @@
+experiment: hyperspectral_memory_efficient
+save_dir: experiments
+resume: True
+accelerator: 'auto'  # Let PyTorch Lightning choose the best available
+
+model:
+  type: hyperspectral_cm_kan
+  params:
+    in_dims:
+      - 31  # 31 hyperspectral bands
+    out_dims:
+      - 31  # 31 output bands
+    grid_size: 3  # Reduced from 5 to save memory
+    spline_order: 2  # Reduced from 3
+    residual_std: 0.1
+    grid_range:
+      - -1.0
+      - 1.0
+    use_spectral_processor: false  # Disable for memory savings
+    use_residual_blocks: false     # Disable for memory savings
+    num_residual_blocks: 0
+    use_gradient_checkpointing: true
+
+data:
+  type: cave
+  train:
+    source: 'data/CAVE/Train/HSI_PER_RGB'
+    target: 'data/CAVE/Train/HSI'
+  val:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  test:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  preprocessing:
+    normalize: true
+    spectral_range: [400, 2500]
+    spatial_size: [64, 64]  # Very small for memory efficiency
+    augmentation:
+      enable: false  # Disable augmentation to save memory
+
+pipeline:
+  type: supervised
+  params:
+    lr: 1e-3  # Higher learning rate to compensate for smaller batch
+    batch_size: 1
+    val_batch_size: 1
+    test_batch_size: 1
+    epochs: 100  # Fewer epochs for testing
+    save_freq: 10
+    visualize_freq: 10
+    
+    # Simplified loss
+    loss_weights:
+      mse: 1.0
+    
+    optimizer: 'adam'  # Simpler optimizer
+    weight_decay: 1e-5  # Reduced weight decay
+    
+    # Basic metrics only (hyperspectral-appropriate)
+    metrics:
+      - 'mse'
+      - 'psnr'
+      - 'sam'  # Spectral Angle Mapper for hyperspectral data
+
+# Aggressive memory optimization
+hardware:
+  mixed_precision: true
+  gradient_accumulation_steps: 16  # Large accumulation to simulate bigger batches
+  pin_memory: false  # Disable to save memory
+  num_workers: 0
+
+# Minimal logging
+logging:
+  tensorboard: false
+  log_images: false
+  log_spectra: false

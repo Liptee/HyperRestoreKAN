@@ -1,0 +1,48 @@
+experiment: hyperspectral_debug
+save_dir: experiments
+resume: false
+accelerator: 'cpu'  # Use CPU to avoid GPU memory issues
+devices: 1
+strategy: 'auto'
+
+model:
+  type: minimal_hyperspectral_cm_kan
+  params:
+    in_dims: [31]
+    out_dims: [31]
+    grid_size: 2
+    spline_order: 1
+    residual_std: 0.1
+    grid_range: [-1.0, 1.0]
+    chunk_size: 32  # Very small chunks
+
+data:
+  type: cave
+  train:
+    source: 'data/CAVE/Train/HSI_PER_RGB'
+    target: 'data/CAVE/Train/HSI'
+  val:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  test:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+
+pipeline:
+  type: supervised
+  params:
+    lr: 1e-3
+    batch_size: 1
+    val_batch_size: 1
+    test_batch_size: 1
+    epochs: 2  # Just for debugging
+    save_freq: 1
+    visualize_freq: 1
+    optimiser: 'adam'
+    weight_decay: 0
+
+hardware:
+  num_workers: 0
+  pin_memory: false
+  mixed_precision: false
+  gradient_accumulation_steps: 1

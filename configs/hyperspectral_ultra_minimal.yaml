@@ -1,0 +1,70 @@
+experiment: hyperspectral_ultra_minimal
+save_dir: experiments
+resume: True
+accelerator: 'auto'
+
+model:
+  type: minimal_hyperspectral_cm_kan
+  params:
+    in_dims:
+      - 31  # 31 hyperspectral bands
+    out_dims:
+      - 31  # 31 output bands
+    grid_size: 2  # Minimal grid size to reduce memory
+    spline_order: 1  # Minimal spline order
+    residual_std: 0.1
+    grid_range:
+      - -1.0
+      - 1.0
+    chunk_size: 256  # Process in small chunks
+
+data:
+  type: cave
+  train:
+    source: 'data/CAVE/Train/HSI_PER_RGB'
+    target: 'data/CAVE/Train/HSI'
+  val:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  test:
+    source: 'data/CAVE/Test/HSI_PER_RGB'
+    target: 'data/CAVE/Test/HSI'
+  preprocessing:
+    normalize: true
+    spectral_range: [400, 2500]
+    spatial_size: [32, 32]  # Very tiny images for minimal memory
+    augmentation:
+      enable: false
+
+pipeline:
+  type: supervised
+  params:
+    lr: 1e-3
+    batch_size: 1
+    val_batch_size: 1
+    test_batch_size: 1
+    epochs: 10  # Just for testing
+    save_freq: 5
+    visualize_freq: 5
+    
+    loss_weights:
+      mse: 1.0
+    
+    optimizer: 'adam'
+    weight_decay: 1e-5
+    
+    metrics:
+      - 'mse'
+
+# Ultra-minimal hardware settings
+hardware:
+  mixed_precision: false  # Disable mixed precision to avoid overhead
+  gradient_accumulation_steps: 1  # No accumulation
+  pin_memory: false
+  num_workers: 0
+
+# No logging to save memory
+logging:
+  tensorboard: false
+  log_images: false
+  log_spectra: false

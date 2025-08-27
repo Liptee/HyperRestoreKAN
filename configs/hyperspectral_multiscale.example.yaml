@@ -1,0 +1,80 @@
+experiment: hyperspectral_multiscale
+save_dir: experiments
+resume: True
+accelerator: 'gpu'
+
+model:
+  type: multiscale_hyperspectral_cm_kan
+  params:
+    in_dims:
+      - 31
+    out_dims:
+      - 31
+    scales: [1.0, 0.75, 0.5]  # Multi-scale processing
+    grid_size: 5
+    spline_order: 3
+    residual_std: 0.1
+    grid_range:
+      - -1.0
+      - 1.0
+
+data:
+  type: hyperspectral
+  train:
+    source: 'data/hyperspectral/train/source'
+    target: 'data/hyperspectral/train/target'
+  val:
+    source: 'data/hyperspectral/val/source'
+    target: 'data/hyperspectral/val/target'
+  test:
+    source: 'data/hyperspectral/test/source'
+    target: 'data/hyperspectral/test/target'
+  preprocessing:
+    normalize: true
+    spectral_range: [400, 2500]
+    spatial_size: [512, 512]  # Larger spatial size for multi-scale
+    augmentation:
+      enable: true
+      spectral_shift: 0.08
+      spatial_flip: true
+      rotation: 20
+      scale_jitter: [0.8, 1.2]  # Scale augmentation
+
+pipeline:
+  type: supervised
+  params:
+    lr: 3e-4
+    batch_size: 4  # Smaller due to multi-scale processing
+    val_batch_size: 2
+    test_batch_size: 2
+    epochs: 1500
+    save_freq: 30
+    visualize_freq: 15
+    
+    loss_weights:
+      mse: 1.0
+      multiscale_mse: 0.5      # Multi-scale MSE loss
+      spectral_angle: 0.4
+      spectral_gradient: 0.3
+      spatial_gradient: 0.2
+      perceptual: 0.1          # Perceptual loss at multiple scales
+    
+    optimizer: 'adamw'
+    weight_decay: 1e-4
+    scheduler: 'cosine'
+    warmup_epochs: 100
+
+hardware:
+  mixed_precision: true
+  gradient_accumulation_steps: 8  # Higher due to smaller batch size
+  pin_memory: true
+  num_workers: 6
+
+logging:
+  wandb:
+    project: "hyperspectral-multiscale-cmkan"
+    tags: ["hyperspectral", "multiscale", "restoration"]
+  tensorboard: true
+  log_images: true
+  log_spectra: true
+  log_multiscale_features: true
