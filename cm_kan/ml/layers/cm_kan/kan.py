@@ -13,24 +13,35 @@ def generate_control_points(
     low_bound: float,
     up_bound: float,
     in_dim: int,
-    out_dim: int,
     spline_order: int,
-    grid_size: int,
-):
-    """
-    Generate a vector of {grid_size} equally spaced points in the interval [low_bound, up_bound] and broadcast (out_dim, in_dim) copies.
-    To account for B-splines of order k, using the same spacing, generate an additional
-    k points on each side of the interval. See 2.4 in original paper for details.
-    """
-
-    # vector of size [grid_size + 2 * spline_order + 1]
+    grid_size: int):
     spacing = (up_bound - low_bound) / grid_size
-    grid = torch.arange(-spline_order, grid_size + spline_order + 1)
-    grid = grid * spacing + low_bound
+    grid = torch.arange(-spline_order, grid_size + spline_order + 1) * spacing + low_bound
+    
+    return grid.unsqueeze(0).expand(in_dim, -1).contiguous()
 
-    # [out_dim, in_dim, G + 2k + 1]
-    grid = grid[None, None, ...].expand(out_dim, in_dim, -1).contiguous()
-    return grid
+# def generate_control_points(
+#     low_bound: float,
+#     up_bound: float,
+#     in_dim: int,
+#     out_dim: int,
+#     spline_order: int,
+#     grid_size: int,
+# ):
+#     """
+#     Generate a vector of {grid_size} equally spaced points in the interval [low_bound, up_bound] and broadcast (out_dim, in_dim) copies.
+#     To account for B-splines of order k, using the same spacing, generate an additional
+#     k points on each side of the interval. See 2.4 in original paper for details.
+#     """
+
+#     # vector of size [grid_size + 2 * spline_order + 1]
+#     spacing = (up_bound - low_bound) / grid_size
+#     grid = torch.arange(-spline_order, grid_size + spline_order + 1)
+#     grid = grid * spacing + low_bound
+
+#     # [out_dim, in_dim, G + 2k + 1]
+#     grid = grid[None, None, ...].expand(out_dim, in_dim, -1).contiguous()
+#     return grid
 
 
 class KANActivation:
@@ -61,7 +72,6 @@ class KANActivation:
             grid_range[0],
             grid_range[1],
             in_dim,
-            out_dim,
             spline_order,
             grid_size,
         )
@@ -74,17 +84,9 @@ class KANActivation:
         Compute and evaluate the learnable activation functions
         applied to a batch of inputs of size in_dim each.
         """
-        grid = self.grid.to(x.device)
-
-        # [bsz x in_dim] to [bsz x out_dim x in_dim x (grid_size + spline_order)]
-        bases = self.univarate_fn(x, grid, self.spline_order)
-
-        # [bsz x out_dim x in_dim x (grid_size + spline_order)]
-        postacts = bases * coef[None, ...]
-
-        # [bsz x out_dim x in_dim] to [bsz x out_dim]
-        spline = torch.sum(postacts, dim=-1)
-
+        grid  = self.grid.to(x.device)
+        bases = self.univarate_fn(x, grid, self.spline_order)   # (B, in, M)
+        spline = torch.einsum('bim,oim->boi', bases, coef)      # (B, out, in)
         return spline
 
 

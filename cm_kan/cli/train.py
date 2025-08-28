@@ -85,8 +85,9 @@ def train(args: argparse.Namespace) -> None:
         strategy=strategy,
         callbacks=[
             ModelCheckpoint(
-                filename="{epoch}-{val_de:.2f}",
-                monitor="val_de",
+                filename="{epoch}-{val_loss:.4f}",
+                monitor="val_loss",
+                mode="min",
                 save_last=True,
             ),
             RichModelSummary(),
