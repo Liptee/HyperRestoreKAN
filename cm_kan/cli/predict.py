@@ -4,14 +4,14 @@ from ..core import Logger
 from ..core.selector import ModelSelector, PipelineSelector
 from ..core.config import Config
 from ..core.config.pipeline import PipelineType
-from ..ml.datasets import ImgPredictDataModule
+from ..ml.datasets import ImgPredictDataModule, HyperspectralPredictDataModule
 import lightning as L
 import os
 from lightning.pytorch.callbacks import (
     RichModelSummary,
     RichProgressBar,
 )
-from cm_kan.ml.callbacks import ImagePredictionWriter
+from cm_kan.ml.callbacks import HyperspectralPredictionWriter
 from lightning.pytorch.loggers import CSVLogger
 from cm_kan import cli
 
@@ -95,11 +95,13 @@ def predict(args: argparse.Namespace) -> None:
     Logger.info("Config:")
     config.print()
 
-    dm = ImgPredictDataModule(
+    # Use HyperspectralPredictDataModule for hyperspectral data (.mat files)
+    dm = HyperspectralPredictDataModule(
         input_path=args.input,
         reference_path=args.reference,
         pipeline_type=config.pipeline.type,
         batch_size=args.batch_size,
+        spectral_channels=31,  # CAVE dataset has 31 spectral channels
     )
     model = ModelSelector.select(config)
     pipeline = PipelineSelector.select(config, model)
@@ -118,7 +120,7 @@ def predict(args: argparse.Namespace) -> None:
         callbacks=[
             RichModelSummary(),
             RichProgressBar(),
-            ImagePredictionWriter(
+            HyperspectralPredictionWriter(
                 output_dir=os.path.join(args.output),
                 write_interval="batch",
             ),
@@ -126,11 +128,9 @@ def predict(args: argparse.Namespace) -> None:
         inference_mode=inference_mode,
     )
 
-    ckpt_path = os.path.join(config.save_dir, config.experiment, args.weights)
-
+    ckpt_path = args.weights
     if not os.path.exists(ckpt_path):
         raise ValueError(f"Checkpoint file '{ckpt_path}' does not exist.")
-
     trainer.predict(
         model=pipeline,
         datamodule=dm,

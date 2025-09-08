@@ -1,2 +1,4 @@
 from .generate import GenerateCallback
 from .write_predictions import ImagePredictionWriter
+from .hyperspectral_prediction_writer import HyperspectralPredictionWriter
+from .save_mat_predictions import SaveMatPredictionsCallback

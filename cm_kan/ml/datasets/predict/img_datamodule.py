@@ -19,7 +19,7 @@ class ImgPredictDataModule(L.LightningDataModule):
         reference_path: str = None,
         pipeline_type: PipelineType = PipelineType.supervised,
         batch_size: int = 4,
-        img_exts: Tuple[str] = (".png", ".jpg"),
+        img_exts: Tuple[str] = (".png", ".jpg", ".mat"),
         num_workers: int = min(12, os.cpu_count() - 1),
     ) -> None:
         super().__init__()
@@ -32,13 +32,8 @@ class ImgPredictDataModule(L.LightningDataModule):
         ]
         self.input_paths = sorted(input_paths)
 
-        if pipeline_type == PipelineType.pair_based:
-            reference_paths = [
-                os.path.join(reference_path, fname)
-                for fname in os.listdir(reference_path)
-                if fname.endswith(img_exts)
-            ]
-            self.reference_paths = sorted(reference_paths)
+        # For supervised pipeline, we don't need reference paths
+        self.reference_paths = None
 
         self.image_transform = Compose(
             [
@@ -52,17 +47,11 @@ class ImgPredictDataModule(L.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         if stage == "predict" or stage is None:
-            if self.pipeline_type == PipelineType.pair_based:
-                self.dataset = ImagePairedPredictDataset(
-                    self.input_paths,
-                    self.reference_paths,
-                    self.image_transform,
-                )
-            else:
-                self.dataset = ImagePredictDataset(
-                    self.input_paths,
-                    self.image_transform,
-                )
+            # For supervised pipeline, use single input dataset
+            self.dataset = ImagePredictDataset(
+                self.input_paths,
+                self.image_transform,
+            )
 
     def predict_dataloader(self) -> DataLoader:
         return DataLoader(

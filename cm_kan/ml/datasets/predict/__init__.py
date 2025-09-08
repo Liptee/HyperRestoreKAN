@@ -1,1 +1,2 @@
 from .img_datamodule import ImgPredictDataModule
+from .hyperspectral_datamodule import HyperspectralPredictDataModule

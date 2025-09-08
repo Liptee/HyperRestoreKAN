@@ -1,8 +1,8 @@
-experiment: hyperspectral_extreme_minimal
+experiment: hyperspectral_extreme_minimal_2
 save_dir: experiments
 resume: false
 accelerator: 'gpu'
-devices: 4  # Single GPU only
+devices: 4  
 strategy: 'auto'  # No DDP for single GPU
 
 model:
@@ -23,14 +23,14 @@ model:
 data:
   type: cave
   train:
-    source: 'data/CAVE/Train/HSI_PER_RGB'
-    target: 'data/CAVE/Train/HSI'
+    source: '/app/data/Train/HSI_PER_RGB'
+    target: '/app/data/Train/HSI'
   val:
-    source: 'data/CAVE/Test/HSI_PER_RGB'
-    target: 'data/CAVE/Test/HSI'
+    source: '/app/data/Test/HSI_PER_RGB'
+    target: '/app/data/Test/HSI'
   test:
-    source: 'data/CAVE/Test/HSI_PER_RGB'
-    target: 'data/CAVE/Test/HSI'
+    source: '/app/data/Test/HSI_PER_RGB'
+    target: '/app/data/Test/HSI'
 
 pipeline:
   type: supervised
@@ -39,7 +39,7 @@ pipeline:
     batch_size: 1  # Minimal batch
     val_batch_size: 1
     test_batch_size: 1
-    epochs: 10  # Just for testing
+    epochs: 5  # Just for testing
     save_freq: 5
     visualize_freq: 5
     optimiser: 'adam'

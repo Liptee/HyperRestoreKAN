@@ -26,7 +26,6 @@ class MinimalHyperspectralCmKAN(nn.Module):
         self.in_dims = in_dims
         self.out_dims = out_dims
         
-        # Single memory-efficient KAN layer
         self.kan_layer = MemoryEfficientHyperspectralCmKANLayer(
             in_channels=in_dims[0],
             out_channels=out_dims[0],
@@ -37,7 +36,6 @@ class MinimalHyperspectralCmKAN(nn.Module):
             chunk_size=chunk_size
         )
         
-        # Minimal normalization
         self.input_norm = nn.BatchNorm2d(in_dims[0])
         self.output_norm = nn.BatchNorm2d(out_dims[0])
         

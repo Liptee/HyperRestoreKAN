@@ -9,7 +9,7 @@ import os
 from lightning.pytorch.callbacks import (
     RichProgressBar,
 )
-from cm_kan.ml.callbacks import GenerateCallback
+from cm_kan.ml.callbacks import GenerateCallback, SaveMatPredictionsCallback
 from lightning.pytorch.loggers import CSVLogger
 from cm_kan import cli
 
@@ -71,6 +71,7 @@ def test(args: argparse.Namespace) -> None:
             GenerateCallback(
                 every_n_epochs=1,
             ),
+            SaveMatPredictionsCallback(),
         ],
         inference_mode=inference_mode,
     )

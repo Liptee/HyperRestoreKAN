@@ -1,11 +1,8 @@
-# Python libraries
 from typing import List
 
-# Installed libraries
 import torch
 import torch.nn.functional as F
 
-# User-defined libraries
 from .bspline import compute_bspline
 
 
@@ -20,36 +17,12 @@ def generate_control_points(
     
     return grid.unsqueeze(0).expand(in_dim, -1).contiguous()
 
-# def generate_control_points(
-#     low_bound: float,
-#     up_bound: float,
-#     in_dim: int,
-#     out_dim: int,
-#     spline_order: int,
-#     grid_size: int,
-# ):
-#     """
-#     Generate a vector of {grid_size} equally spaced points in the interval [low_bound, up_bound] and broadcast (out_dim, in_dim) copies.
-#     To account for B-splines of order k, using the same spacing, generate an additional
-#     k points on each side of the interval. See 2.4 in original paper for details.
-#     """
-
-#     # vector of size [grid_size + 2 * spline_order + 1]
-#     spacing = (up_bound - low_bound) / grid_size
-#     grid = torch.arange(-spline_order, grid_size + spline_order + 1)
-#     grid = grid * spacing + low_bound
-
-#     # [out_dim, in_dim, G + 2k + 1]
-#     grid = grid[None, None, ...].expand(out_dim, in_dim, -1).contiguous()
-#     return grid
-
 
 class KANActivation:
     """
     Defines a KAN Activation layer that computes the spline(x) logic
     described in the original paper.
     """
-
     def __init__(
         self,
         in_dim: int,
@@ -67,16 +40,15 @@ class KANActivation:
 
         self.coef_shape = (out_dim, in_dim, grid_size + spline_order)
 
-        # Generate (out, in) copies of equally spaced control points on [a, b]
         self.grid = generate_control_points(
             grid_range[0],
             grid_range[1],
             in_dim,
+            # out_dim,
             spline_order,
             grid_size,
         )
 
-        # Define the univariate B-spline function
         self.univarate_fn = compute_bspline
 
     def __call__(self, x: torch.Tensor, coef) -> torch.Tensor:

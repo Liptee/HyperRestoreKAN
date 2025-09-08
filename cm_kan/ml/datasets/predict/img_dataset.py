@@ -1,7 +1,7 @@
 import torch
 import os
 from torch.utils.data import Dataset
-from cm_kan.ml.utils.io import read_rgb_image
+from cm_kan.ml.utils.io import read_image_or_mat
 from typing import List
 from torchvision.transforms.v2 import Compose
 
@@ -13,7 +13,7 @@ class ImagePredictDataset(Dataset):
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         path = self.paths[idx]
-        x = read_rgb_image(path)
+        x = read_image_or_mat(path)
         path = os.path.basename(path)
         if self.transform is not None:
             x = self.transform(x)
@@ -34,10 +34,10 @@ class ImagePairedPredictDataset(Dataset):
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         path = self.paths[idx]
-        x = read_rgb_image(path)
+        x = read_image_or_mat(path)
 
         ref_path = self.ref_paths[idx]
-        y = read_rgb_image(ref_path)
+        y = read_image_or_mat(ref_path)
 
         path = os.path.basename(path)
 
