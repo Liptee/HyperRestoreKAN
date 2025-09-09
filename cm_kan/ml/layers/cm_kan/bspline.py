@@ -1,39 +1,5 @@
 import torch
 
-
-# Helper functions for computing B splines over a grid
-# def compute_bspline(x: torch.Tensor, grid: torch.Tensor, k: int):
-#     """
-#     For a given grid with G_1 intervals and spline order k, we *recursively* compute
-#     and evaluate each B_n(x_{ij}). x is a (batch_size, in_dim) and grid is a
-#     (out_dim, in_dim, # grid points + 2k + 1)
-
-#     Returns a (batch_size, out_dim, in_dim, grid_size + k) intermediate tensor to
-#     compute sum_i {c_i B_i(x)} with.
-
-#     """
-
-#     grid = grid[None, :, :, :].to(x.device)
-#     x = x[:, None, :, None].to(x.device)
-
-#     # Base case: B_{i,0}(x) = 1 if (grid_i <= x <= grid_{i+k}) 0 otherwise
-#     bases = (x >= grid[:, :, :, :-1]) * (x < grid[:, :, :, 1:])
-
-#     # Recurse over spline order j, vectorize over basis function i
-#     for j in range(1, k + 1):
-#         n = grid.size(-1) - (j + 1)
-#         b1 = (
-#             (x[:, :, :, :] - grid[:, :, :, :n])
-#             / (grid[:, :, :, j:-1] - grid[:, :, :, :n])
-#         ) * bases[:, :, :, :-1]
-#         b2 = (
-#             (grid[:, :, :, j + 1 :] - x[:, :, :, :])
-#             / (grid[:, :, :, j + 1 :] - grid[:, :, :, 1 : n + 1])
-#         ) * bases[:, :, :, 1:]
-#         bases = b1 + b2
-
-#     return bases
-
 def compute_bspline(x: torch.Tensor, grid: torch.Tensor, k: int):
     # x: (B, in_dim), grid: (in_dim, P)
     grid = grid.unsqueeze(0).to(x.device)          # (1, in_dim, P)

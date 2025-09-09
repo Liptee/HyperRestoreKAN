@@ -50,3 +50,6 @@ class HyperspectralPredictionWriter(BasePredictionWriter):
             print(f"Saved prediction to: {output_path}")
 
 
+
+
+

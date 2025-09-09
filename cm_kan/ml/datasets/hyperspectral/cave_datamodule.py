@@ -1,6 +1,6 @@
 import lightning as L
 from torch.utils.data import DataLoader
-from .cave_dataset import CAVEDataset
+from .cave_dataset import CAVEDataset, CAVEPredictDataset
 import torch
 
 
@@ -64,6 +64,13 @@ class CAVEDataModule(L.LightningDataModule):
                 spectral_channels=self.spectral_channels,
                 transform=self._get_val_transform()
             )
+        
+        if stage == "predict" or stage is None:
+            self.predict_dataset = CAVEPredictDataset(
+                source_dir=self.test_a,  # Use test data for prediction
+                spectral_channels=self.spectral_channels,
+                transform=self._get_val_transform()
+            )
 
     def train_dataloader(self):
         # Debug: print(f"Creating train dataloader: batch_size={self.batch_size}, num_workers={self.num_workers}")
@@ -89,6 +96,16 @@ class CAVEDataModule(L.LightningDataModule):
     def test_dataloader(self):
         return DataLoader(
             self.test_dataset,
+            batch_size=self.test_batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=False if self.num_workers == 0 else True,
+            persistent_workers=True if self.num_workers > 0 else False
+        )
+
+    def predict_dataloader(self):
+        return DataLoader(
+            self.predict_dataset,
             batch_size=self.test_batch_size,
             shuffle=False,
             num_workers=self.num_workers,

@@ -8,7 +8,7 @@ from torchvision.transforms.v2 import (
 )
 from torch.utils.data import DataLoader
 from typing import Tuple
-from .img_dataset import ImagePredictDataset, ImagePairedPredictDataset
+from .img_dataset import ImagePredictDataset
 from cm_kan.core.config.pipeline import PipelineType
 
 

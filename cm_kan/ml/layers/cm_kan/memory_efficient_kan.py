@@ -1,8 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-from .kan import KANLayer
 
 
 class MemoryEfficientBSpline(nn.Module):

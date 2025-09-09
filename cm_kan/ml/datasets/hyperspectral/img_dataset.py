@@ -1,11 +1,9 @@
-import os
 import torch
 from torch.utils.data import Dataset
 import numpy as np
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple
 import scipy.io as sio
-from PIL import Image
 
 
 class HyperspectralImgDataset(Dataset):

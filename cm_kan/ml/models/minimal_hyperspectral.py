@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from cm_kan.ml.layers.cm_kan.memory_efficient_kan import MemoryEfficientHyperspectralCmKANLayer
 from cm_kan.core import Logger

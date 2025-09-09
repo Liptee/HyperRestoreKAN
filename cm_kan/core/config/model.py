@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import List, Union, Optional
+from typing import List, Union
 
 
 class ModelType(str, Enum):

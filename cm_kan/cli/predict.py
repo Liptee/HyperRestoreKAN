@@ -3,8 +3,7 @@ import yaml
 from ..core import Logger
 from ..core.selector import ModelSelector, PipelineSelector
 from ..core.config import Config
-from ..core.config.pipeline import PipelineType
-from ..ml.datasets import ImgPredictDataModule, HyperspectralPredictDataModule
+from ..ml.datasets import HyperspectralPredictDataModule
 import lightning as L
 import os
 from lightning.pytorch.callbacks import (
