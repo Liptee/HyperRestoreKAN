@@ -1,0 +1,131 @@
+# Примеры конфигурации для различных режимов spectral_mode
+# 
+# Этот файл содержит только примеры. Для запуска используйте:
+# - configs/global_mode.yaml
+# - configs/local_window_mode.yaml  
+# - configs/hybrid_mode.yaml
+#
+# Или создайте свою конфигурацию на основе этих примеров.
+
+# Глобальный режим (по умолчанию, совместимый со старыми конфигурациями)
+global_mode_example:
+  experiment: "hyperspectral_global_mode"
+  save_dir: "experiments"
+  resume: false
+  model:
+    type: "hyperspectral_cm_kan"
+    params:
+      in_dims: [31]
+      out_dims: [31]
+      grid_size: 5
+      spline_order: 3
+      residual_std: 0.1
+      grid_range: [-1.0, 1.0]
+      use_spectral_processor: true
+      use_residual_blocks: true
+      num_residual_blocks: 2
+      use_gradient_checkpointing: true
+      # Глобальный режим (по умолчанию)
+      spectral_mode: "global"
+
+# Режим локального спектрального окна
+local_window_mode_example:
+  experiment: "hyperspectral_local_window_mode"
+  save_dir: "experiments"
+  resume: false
+  model:
+    type: "hyperspectral_cm_kan"
+    params:
+      in_dims: [31]
+      out_dims: [31]
+      grid_size: 5
+      spline_order: 3
+      residual_std: 0.1
+      grid_range: [-1.0, 1.0]
+      use_spectral_processor: false  # Не нужен в локальном режиме
+      use_residual_blocks: true
+      num_residual_blocks: 2
+      use_gradient_checkpointing: true
+      # Локальный режим окна
+      spectral_mode: "local_window"
+      window_size: 3  # Окно [k-3...k+3], всего 7 каналов
+      padding_mode: "reflect"  # reflect, replicate, zero
+      shared_kan_params: true  # Общие параметры для всех каналов
+
+# Гибридный режим (локальное окно + глобальное смешивание)
+hybrid_mode_example:
+  experiment: "hyperspectral_hybrid_mode"
+  save_dir: "experiments"
+  resume: false
+  model:
+    type: "hyperspectral_cm_kan"
+    params:
+      in_dims: [31]
+      out_dims: [31]
+      grid_size: 5
+      spline_order: 3
+      residual_std: 0.1
+      grid_range: [-1.0, 1.0]
+      use_spectral_processor: false
+      use_residual_blocks: true
+      num_residual_blocks: 2
+      use_gradient_checkpointing: true
+      # Гибридный режим
+      spectral_mode: "hybrid"
+      window_size: 2  # Окно [k-2...k+2], всего 5 каналов
+      padding_mode: "reflect"
+      shared_kan_params: false  # Отдельные параметры для каждого канала
+
+# Режим с настройкой по длинам волн (пример для будущего расширения)
+wavelength_based_mode_example:
+  experiment: "hyperspectral_wavelength_mode"
+  save_dir: "experiments"
+  resume: false
+  model:
+    type: "hyperspectral_cm_kan"
+    params:
+      in_dims: [31]
+      out_dims: [31]
+      grid_size: 5
+      spline_order: 3
+      residual_std: 0.1
+      grid_range: [-1.0, 1.0]
+      use_spectral_processor: false
+      use_residual_blocks: true
+      num_residual_blocks: 1
+      use_gradient_checkpointing: true
+      spectral_mode: "local_window"
+      window_size: 4  # Окно [k-4...k+4], всего 9 каналов
+      padding_mode: "replicate"
+      shared_kan_params: true
+      # Пример длин волн для CAVE датасета (в нанометрах)
+      wavelengths: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500, 510, 520, 530, 540, 550, 560, 570, 580, 590, 600, 610, 620, 630, 640, 650, 660, 670, 680, 690, 700]
+
+  data:
+    type: "cave"
+    train:
+      source: "data/CAVE/train"
+      target: "data/CAVE/train"
+    val:
+      source: "data/CAVE/val"
+      target: "data/CAVE/val"
+    test:
+      source: "data/CAVE/test"
+      target: "data/CAVE/test"
+  
+  pipeline:
+    type: "supervised"
+    params:
+      lr: 1e-3
+      batch_size: 8
+      val_batch_size: 1
+      test_batch_size: 1
+      epochs: 100
+      save_freq: 10
+      visualize_freq: 10
+      optimizer: "adam"
+      weight_decay: 0.0
+  
+  accelerator: "gpu"
+  devices: "auto"
+  strategy: "auto"

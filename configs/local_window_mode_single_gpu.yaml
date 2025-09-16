@@ -1,0 +1,59 @@
+experiment: "hyperspectral_local_window_mode_single_gpu"
+save_dir: "experiments"
+resume: false
+
+model:
+  type: "hyperspectral_cm_kan"
+  params:
+    in_dims: [31]
+    out_dims: [31]
+    grid_size: 5
+    spline_order: 3
+    residual_std: 0.1
+    grid_range: [-1.0, 1.0]
+    use_spectral_processor: false  # Не нужен в локальном режиме
+    use_residual_blocks: true
+    num_residual_blocks: 2
+    use_gradient_checkpointing: true
+    # Локальный режим окна
+    spectral_mode: "local_window"
+    window_size: 3  # Окно [k-3...k+3], всего 7 каналов
+    padding_mode: "reflect"  # reflect, replicate, zero
+    shared_kan_params: true  # Общие параметры для всех каналов
+
+data:
+  type: "cave"
+  train:
+    source: "data/Train/HSI_PER_RGB"
+    target: "data/Train/HSI"
+  val:
+    source: "data/Test/HSI_PER_RGB"
+    target: "data/Test/HSI"
+  test:
+    source: "data/Test/HSI_PER_RGB"
+    target: "data/Test/HSI"
+
+pipeline:
+  type: "supervised"
+  params:
+    lr: 1e-3
+    batch_size: 4  # Увеличиваем batch size для одного GPU
+    val_batch_size: 4
+    test_batch_size: 4
+    epochs: 10
+    save_freq: 1
+    visualize_freq: 1
+    optimizer: "adam"
+    weight_decay: 0.0
+
+accelerator: "gpu"
+devices: 1  # Use only 1 GPU to avoid DDP issues
+strategy: "auto"
+
+hardware:
+  num_workers: 4 
+  pin_memory: false
+  mixed_precision: false
+  gradient_accumulation_steps: 1
+
+

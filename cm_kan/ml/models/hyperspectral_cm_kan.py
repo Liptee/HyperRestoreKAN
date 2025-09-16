@@ -34,17 +34,28 @@ class HyperspectralCmKAN(torch.nn.Module):
         use_spectral_processor=True,
         use_residual_blocks=True,
         num_residual_blocks=2,
-        use_gradient_checkpointing=True
+        use_gradient_checkpointing=True,
+        # New spectral mode parameters
+        spectral_mode="global",
+        window_size=3,
+        padding_mode="reflect",
+        wavelengths=None,
+        shared_kan_params=True
     ):
         super(HyperspectralCmKAN, self).__init__()
 
-        Logger.info(f"HyperspectralCmKAN: in_dims={in_dims}, out_dims={out_dims}")
+        Logger.info(f"HyperspectralCmKAN: in_dims={in_dims}, out_dims={out_dims}, spectral_mode={spectral_mode}")
         
         self.in_dims = in_dims
         self.out_dims = out_dims
         self.use_spectral_processor = use_spectral_processor
         self.use_residual_blocks = use_residual_blocks
         self.use_gradient_checkpointing = use_gradient_checkpointing
+        self.spectral_mode = spectral_mode
+        self.window_size = window_size
+        self.padding_mode = padding_mode
+        self.wavelengths = wavelengths
+        self.shared_kan_params = shared_kan_params
 
         # Validate hyperspectral dimensions
         if in_dims[0] != 31:
@@ -74,6 +85,11 @@ class HyperspectralCmKAN(torch.nn.Module):
                 spline_order=spline_order,
                 residual_std=residual_std,
                 grid_range=grid_range,
+                spectral_mode=spectral_mode,
+                window_size=window_size,
+                padding_mode=padding_mode,
+                wavelengths=wavelengths,
+                shared_kan_params=shared_kan_params,
             )
             self.layers.append(layer)
 
@@ -143,6 +159,65 @@ class HyperspectralCmKAN(torch.nn.Module):
         x = x + input_residual
         
         return x
+
+    def load_state_dict(self, state_dict, strict=True):
+        """
+        Load state dict with backward compatibility for old checkpoints.
+        
+        This method ensures compatibility with models trained before the spectral_mode
+        feature was added. Old checkpoints will automatically work in global mode.
+        """
+        # Check if this is an old checkpoint (missing spectral mode components)
+        is_old_checkpoint = not any(
+            key.startswith(('window_preprocessor.', 'grouped_kan.', 'global_mixer.'))
+            for key in state_dict.keys()
+        )
+        
+        if is_old_checkpoint and self.spectral_mode != "global":
+            Logger.info(
+                f"Loading old checkpoint with spectral_mode='{self.spectral_mode}'. "
+                "Only 'global' mode is supported for old checkpoints. "
+                "Consider retraining for other modes."
+            )
+            # For old checkpoints, we can only support global mode
+            # The user should retrain for local_window or hybrid modes
+        
+        # Filter out keys that don't exist in current model (for forward compatibility)
+        current_keys = set(self.state_dict().keys())
+        filtered_state_dict = {
+            key: value for key, value in state_dict.items() 
+            if key in current_keys
+        }
+        
+        # Load with filtered state dict
+        return super().load_state_dict(filtered_state_dict, strict=False)
+
+    def get_spectral_mode_info(self):
+        """
+        Get information about the current spectral processing mode.
+        
+        Returns:
+            dict: Information about spectral mode configuration
+        """
+        info = {
+            'spectral_mode': self.spectral_mode,
+            'input_channels': self.in_dims[0],
+            'output_channels': self.out_dims[-1],
+        }
+        
+        if self.spectral_mode in ['local_window', 'hybrid']:
+            info.update({
+                'window_size': self.window_size,
+                'total_window_channels': 2 * self.window_size + 1,
+                'padding_mode': self.padding_mode,
+                'shared_kan_params': self.shared_kan_params,
+                'has_wavelengths': self.wavelengths is not None,
+            })
+        
+        if self.spectral_mode == 'hybrid':
+            info['has_global_mixer'] = True
+        
+        return info
 
 
 class LightHyperspectralCmKAN(torch.nn.Module):

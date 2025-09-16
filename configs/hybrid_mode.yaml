@@ -1,0 +1,56 @@
+experiment: "hyperspectral_hybrid_mode"
+save_dir: "experiments"
+resume: false
+
+model:
+  type: "hyperspectral_cm_kan"
+  params:
+    in_dims: [31]
+    out_dims: [31]
+    grid_size: 5
+    spline_order: 3
+    residual_std: 0.1
+    grid_range: [-1.0, 1.0]
+    use_spectral_processor: false
+    use_residual_blocks: true
+    num_residual_blocks: 2
+    use_gradient_checkpointing: true
+    # Гибридный режим
+    spectral_mode: "hybrid"
+    window_size: 2  # Окно [k-2...k+2], всего 5 каналов
+    padding_mode: "reflect"
+    shared_kan_params: false  # Отдельные параметры для каждого канала
+
+data:
+  type: "cave"
+  train:
+    source: "data/CAVE/train"
+    target: "data/CAVE/train"
+  val:
+    source: "data/CAVE/val"
+    target: "data/CAVE/val"
+  test:
+    source: "data/CAVE/test"
+    target: "data/CAVE/test"
+
+pipeline:
+  type: "supervised"
+  params:
+    lr: 1e-3
+    batch_size: 8
+    val_batch_size: 1
+    test_batch_size: 1
+    epochs: 100
+    save_freq: 10
+    visualize_freq: 10
+    optimizer: "adam"
+    weight_decay: 0.0
+
+accelerator: "gpu"
+devices: "auto"
+strategy: "auto"
+
+
+
+
+

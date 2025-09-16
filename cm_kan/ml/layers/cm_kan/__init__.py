@@ -9,3 +9,8 @@ from .memory_efficient_kan import (
     MemoryEfficientHyperspectralCmKANLayer,
     ChunkedHyperspectralProcessor
 )
+from .spectral_window import (
+    SpectralWindowPreprocessor,
+    GroupedKANLayer,
+    HybridSpectralMixer
+)

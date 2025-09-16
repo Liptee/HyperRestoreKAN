@@ -5,6 +5,19 @@ from einops import rearrange
 from torch.utils.checkpoint import checkpoint
 
 
+class SimpleDownsample(nn.Module):
+    """
+    Simple downsampling layer to replace DWTForward for compatibility.
+    Uses strided convolution for 2x downsampling and channel expansion.
+    """
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
+        
+    def forward(self, x):
+        return self.conv(x)
+
+
 class MemoryEfficientHyperspectralAttention(nn.Module):
     """
     Memory-efficient attention for hyperspectral images.
@@ -401,14 +414,14 @@ class HyperspectralEncoder2D(torch.nn.Module):
         self.estimator = HyperspectralIlluminationEstimator(64, in_dim, in_dim)
 
         # Multi-scale processing for hyperspectral data
-        self.down1 = DWTForward()  # First downsampling: 31*4 = 124 channels
+        self.down1 = SimpleDownsample(in_dim, in_dim * 4)  # First downsampling: 31*4 = 124 channels
         self.trans1 = HyperspectralTransformerBlock(124, 124, 124, 4, True)
         self.illu_down1 = nn.Sequential(
             nn.AvgPool2d(2),
             nn.Conv2d(64, 124, 1),
         )
 
-        self.down2 = DWTForward()  # Second downsampling: 124*4 = 496 channels  
+        self.down2 = SimpleDownsample(124, 124 * 4)  # Second downsampling: 124*4 = 496 channels  
         self.trans2 = HyperspectralTransformerBlock(496, 496, 496, 8, True)
         self.illu_down2 = nn.Sequential(
             nn.AvgPool2d(2),
@@ -416,7 +429,7 @@ class HyperspectralEncoder2D(torch.nn.Module):
         )
 
         # Additional level for better hyperspectral feature extraction
-        self.down3 = DWTForward()  # Third downsampling: 496*4 = 1984 channels
+        self.down3 = SimpleDownsample(496, 496 * 4)  # Third downsampling: 496*4 = 1984 channels
         self.trans3 = HyperspectralTransformerBlock(1984, 1984, 1984, 16, True)
         self.illu_down3 = nn.Sequential(
             nn.AvgPool2d(2),
@@ -555,7 +568,7 @@ class LightHyperspectralEncoder2D(torch.nn.Module):
         self.estimator = HyperspectralIlluminationEstimator(32, in_dim, in_dim)
 
         # Single-scale processing for efficiency
-        self.down1 = DWTForward()  # 31*4 = 124 channels
+        self.down1 = SimpleDownsample(in_dim, in_dim * 4)  # 31*4 = 124 channels
         self.trans1 = HyperspectralTransformerBlock(124, 124, 124, 2, True)
         self.illu_down1 = nn.Sequential(
             nn.AvgPool2d(2),

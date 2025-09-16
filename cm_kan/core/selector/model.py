@@ -30,6 +30,13 @@ class ModelSelector:
                     use_spectral_processor=getattr(config.model.params, 'use_spectral_processor', True),
                     use_residual_blocks=getattr(config.model.params, 'use_residual_blocks', True),
                     num_residual_blocks=getattr(config.model.params, 'num_residual_blocks', 2),
+                    use_gradient_checkpointing=getattr(config.model.params, 'use_gradient_checkpointing', True),
+                    # New spectral mode parameters
+                    spectral_mode=getattr(config.model.params, 'spectral_mode', "global"),
+                    window_size=getattr(config.model.params, 'window_size', 3),
+                    padding_mode=getattr(config.model.params, 'padding_mode', "reflect"),
+                    wavelengths=getattr(config.model.params, 'wavelengths', None),
+                    shared_kan_params=getattr(config.model.params, 'shared_kan_params', True),
                 )
             case ModelType.light_hyperspectral_cm_kan:
                 return LightHyperspectralCmKAN(

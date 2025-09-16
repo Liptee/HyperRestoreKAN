@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import List, Union
+from typing import List, Union, Optional
 
 
 class ModelType(str, Enum):
@@ -9,6 +9,12 @@ class ModelType(str, Enum):
     hyperspectral_cycle_cm_kan = "hyperspectral_cycle_cm_kan"
     multiscale_hyperspectral_cm_kan = "multiscale_hyperspectral_cm_kan"
     minimal_hyperspectral_cm_kan = "minimal_hyperspectral_cm_kan"
+
+
+class SpectralMode(str, Enum):
+    global_ = "global"
+    local_window = "local_window"
+    hybrid = "hybrid"
 
 
 class HyperspectralCmKanModelParams(BaseModel):
@@ -22,6 +28,12 @@ class HyperspectralCmKanModelParams(BaseModel):
     use_residual_blocks: bool = True
     num_residual_blocks: int = 2
     use_gradient_checkpointing: bool = True
+    # New spectral mode parameters
+    spectral_mode: SpectralMode = SpectralMode.global_
+    window_size: int = 3  # n in [k-n...k+n], so total window is 2n+1
+    padding_mode: str = "reflect"  # reflect, replicate, zero
+    wavelengths: Optional[List[float]] = None  # Optional wavelengths for nm-based window selection
+    shared_kan_params: bool = True  # Whether to use shared or per-channel KAN parameters
 
 
 class MultiScaleHyperspectralCmKanModelParams(BaseModel):

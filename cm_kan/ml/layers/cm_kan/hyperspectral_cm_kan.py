@@ -2,12 +2,19 @@ import numpy as np
 import torch
 from .kan import KANLayer
 from .hyperspectral_generator import HyperspectralGeneratorLayer, LightHyperspectralGeneratorLayer
+from .spectral_window import SpectralWindowPreprocessor, GroupedKANLayer, HybridSpectralMixer
+from typing import Optional, List
 
 
 class HyperspectralCmKANLayer(torch.nn.Module):
     """
     Hyperspectral Color Matching KAN Layer for 31-channel processing
     Adapted from the original CmKANLayer to handle hyperspectral data
+    
+    Supports multiple spectral processing modes:
+    - global: Traditional global spectral processing (default)
+    - local_window: Local spectral window processing
+    - hybrid: Local window + global mixing
     """
     def __init__(
         self,
@@ -17,16 +24,42 @@ class HyperspectralCmKANLayer(torch.nn.Module):
         spline_order=3,
         residual_std=0.1,
         grid_range=(-1.0, 1.0),
+        spectral_mode="global",
+        window_size=3,
+        padding_mode="reflect",
+        wavelengths=None,
+        shared_kan_params=True,
     ):
         super(HyperspectralCmKANLayer, self).__init__()
 
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.spectral_mode = spectral_mode
+        self.window_size = window_size
+        self.padding_mode = padding_mode
+        self.wavelengths = wavelengths
+        self.shared_kan_params = shared_kan_params
         
+        # Validate spectral mode
+        if spectral_mode not in ["global", "local_window", "hybrid"]:
+            raise ValueError(f"spectral_mode must be one of ['global', 'local_window', 'hybrid'], got {spectral_mode}")
+        
+        if spectral_mode == "global":
+            # Traditional global processing
+            self._setup_global_mode(grid_size, spline_order, residual_std, grid_range)
+        elif spectral_mode == "local_window":
+            # Local window processing
+            self._setup_local_window_mode(grid_size, spline_order, residual_std, grid_range)
+        else:  # hybrid
+            # Local window + global mixing
+            self._setup_hybrid_mode(grid_size, spline_order, residual_std, grid_range)
+
+    def _setup_global_mode(self, grid_size, spline_order, residual_std, grid_range):
+        """Setup traditional global spectral processing mode."""
         # KAN layer for hyperspectral processing
         self.kan_layer = KANLayer(
-            in_dim=in_channels,
-            out_dim=out_channels,
+            in_dim=self.in_channels,
+            out_dim=self.out_channels,
             grid_size=grid_size,
             spline_order=spline_order,
             residual_std=residual_std,
@@ -53,31 +86,77 @@ class HyperspectralCmKANLayer(torch.nn.Module):
         self.kan_params_indices = np.cumsum(self.kan_params_indices)
 
         # Hyperspectral generator for parameter generation
-        self.generator = HyperspectralGeneratorLayer(in_channels, self.kan_params_num)
+        self.generator = HyperspectralGeneratorLayer(self.in_channels, self.kan_params_num)
+
+    def _setup_local_window_mode(self, grid_size, spline_order, residual_std, grid_range):
+        """Setup local spectral window processing mode."""
+        # Window preprocessor
+        self.window_preprocessor = SpectralWindowPreprocessor(
+            num_channels=self.in_channels,
+            window_size=self.window_size,
+            padding_mode=self.padding_mode,
+            wavelengths=self.wavelengths
+        )
+        
+        # Grouped KAN for window processing
+        self.grouped_kan = GroupedKANLayer(
+            num_channels=self.out_channels,
+            window_size=self.window_size,
+            grid_size=grid_size,
+            spline_order=spline_order,
+            residual_std=residual_std,
+            grid_range=grid_range,
+            shared_params=self.shared_kan_params
+        )
+
+    def _setup_hybrid_mode(self, grid_size, spline_order, residual_std, grid_range):
+        """Setup hybrid mode with local window + global mixing."""
+        # Setup local window processing
+        self._setup_local_window_mode(grid_size, spline_order, residual_std, grid_range)
+        
+        # Add global spectral mixer
+        self.global_mixer = HybridSpectralMixer(
+            num_channels=self.out_channels,
+            mixer_type="conv1x1"
+        )
 
     def kan(self, x, w):
         """Apply KAN transformation with generated weights"""
-        i, j = self.kan_params_indices[0], self.kan_params_indices[1]
-        coef = w[:, i:j].view(-1, *self.kan_layer.activation_fn.coef_shape)
+        # Process each sample in the batch individually
+        batch_size = x.shape[0]
+        outputs = []
         
-        i, j = self.kan_params_indices[1], self.kan_params_indices[2]
-        univariate_weight = w[:, i:j].view(
-            -1, *self.kan_layer.residual_layer.univariate_weight_shape
-        )
+        for b in range(batch_size):
+            # Extract parameters for this sample
+            i, j = self.kan_params_indices[0], self.kan_params_indices[1]
+            coef = w[b, i:j].view(*self.kan_layer.activation_fn.coef_shape)
+            
+            i, j = self.kan_params_indices[1], self.kan_params_indices[2]
+            univariate_weight = w[b, i:j].view(
+                *self.kan_layer.residual_layer.univariate_weight_shape
+            )
+            
+            i, j = self.kan_params_indices[2], self.kan_params_indices[3]
+            residual_weight = w[b, i:j].view(
+                *self.kan_layer.residual_layer.residual_weight_shape
+            )
+            
+            # Apply KAN to this sample
+            sample_output = self.kan_layer(x[b:b+1], coef, univariate_weight, residual_weight)
+            outputs.append(sample_output)
         
-        i, j = self.kan_params_indices[2], self.kan_params_indices[3]
-        residual_weight = w[:, i:j].view(
-            -1, *self.kan_layer.residual_layer.residual_weight_shape
-        )
-        
-        x = self.kan_layer(x, coef, univariate_weight, residual_weight)
-        return x.squeeze(0)
+        # Concatenate outputs
+        return torch.cat(outputs, dim=0)
 
     def forward(self, x):
         """
-        Forward pass for hyperspectral data
-        Input: x with shape (B, 31, H, W)
-        Output: processed hyperspectral image with shape (B, out_channels, H, W)
+        Forward pass for hyperspectral data with support for different spectral modes.
+        
+        Args:
+            x: Input tensor with shape (B, in_channels, H, W)
+            
+        Returns:
+            Processed hyperspectral image with shape (B, out_channels, H, W)
         """
         B, C, H, W = x.shape
         
@@ -85,6 +164,17 @@ class HyperspectralCmKANLayer(torch.nn.Module):
         if C != self.in_channels:
             raise ValueError(f"Expected {self.in_channels} input channels, got {C}")
 
+        if self.spectral_mode == "global":
+            return self._forward_global(x)
+        elif self.spectral_mode == "local_window":
+            return self._forward_local_window(x)
+        else:  # hybrid
+            return self._forward_hybrid(x)
+
+    def _forward_global(self, x):
+        """Forward pass for global spectral processing mode."""
+        B, C, H, W = x.shape
+        
         # Generate KAN weights using hyperspectral generator
         # weights shape: (B, kan_params_num, H, W)
         weights = self.generator(x)
@@ -107,6 +197,26 @@ class HyperspectralCmKANLayer(torch.nn.Module):
         x = x.view(B, H, W, self.kan_layer.out_dim).permute(0, 3, 1, 2)
 
         return x
+
+    def _forward_local_window(self, x):
+        """Forward pass for local window spectral processing mode."""
+        # Apply spectral windowing: [B, C, H, W] -> [B, C, (2n+1), H, W]
+        windowed_x = self.window_preprocessor(x)
+        
+        # Apply grouped KAN processing: [B, C, (2n+1), H, W] -> [B, C, H, W]
+        output = self.grouped_kan(windowed_x)
+        
+        return output
+
+    def _forward_hybrid(self, x):
+        """Forward pass for hybrid spectral processing mode."""
+        # First apply local window processing
+        output = self._forward_local_window(x)
+        
+        # Then apply global spectral mixing
+        output = self.global_mixer(output)
+        
+        return output
 
 
 class LightHyperspectralCmKANLayer(HyperspectralCmKANLayer):

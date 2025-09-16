@@ -1,9 +1,9 @@
-experiment: hyperspectral_extreme_minimal_2
+experiment: hyperspectral_extreme_minimal
 save_dir: experiments
 resume: false
 accelerator: 'gpu'
 devices: 4  
-strategy: 'auto'  # No DDP for single GPU
+strategy: 'auto'
 
 model:
   type: minimal_hyperspectral_cm_kan  # Most minimal version
@@ -39,15 +39,15 @@ pipeline:
     batch_size: 1  # Minimal batch
     val_batch_size: 1
     test_batch_size: 1
-    epochs: 5  # Just for testing
-    save_freq: 5
+    epochs: 10  # Just for testing
+    save_freq: 1
     visualize_freq: 5
     optimiser: 'adam'
     weight_decay: 1e-5
 
 # Memory optimization settings
 hardware:
-  num_workers: 4  # No multiprocessing
+  num_workers: 4 
   pin_memory: false
   mixed_precision: false
   gradient_accumulation_steps: 1
